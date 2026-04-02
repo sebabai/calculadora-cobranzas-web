@@ -1,31 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/session";
+import { createClient } from "@supabase/supabase-js";
 
-// adaptá esto a tu forma real de obtener sesión
-async function getSessionUser() {
-  // ejemplo
-  // return await getUserFromSessionCookie();
-  return null;
-}
+type SessionUser = {
+  id: string;
+  username: string;
+  nombre: string;
+  apellido: string;
+  dni?: string | null;
+  role: "admin" | "user";
+};
 
-const DEFAULT_STRATEGIES = [
-  { key: "agresiva", label: "Agresiva", index_multiplier: 50 },
-  { key: "moderada", label: "Moderada", index_multiplier: 20 },
-  { key: "suave", label: "Suave", index_multiplier: 10 },
-];
+type Strategy = {
+  key: "agresiva" | "moderada" | "suave";
+  label: string;
+  index_multiplier: number;
+};
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function GET() {
-  const user = await getSessionUser();
+  const user = (await getSessionUser()) as SessionUser | null;
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  // leer de base si tenés tabla; si no, devolver defaults
-  return NextResponse.json({ data: DEFAULT_STRATEGIES });
+  const { data, error } = await supabase
+    .from("strategies")
+    .select("key,label,index_multiplier")
+    .order("key");
+
+  if (error) {
+    return NextResponse.json({ error: "No se pudieron cargar las estrategias" }, { status: 500 });
+  }
+
+  return NextResponse.json({ data });
 }
 
 export async function PUT(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = (await getSessionUser()) as SessionUser | null;
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -35,10 +52,19 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body = (await req.json()) as Strategy;
 
-  // guardar en base
-  // validar body.key, body.label, body.index_multiplier
+  const { error } = await supabase
+    .from("strategies")
+    .upsert({
+      key: body.key,
+      label: body.label,
+      index_multiplier: body.index_multiplier,
+    });
+
+  if (error) {
+    return NextResponse.json({ error: "No se pudo guardar la estrategia" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
