@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { createClient } from "@supabase/supabase-js";
 
 type SessionUser = {
@@ -23,7 +23,8 @@ const supabase = createClient(
 );
 
 export async function GET() {
-  const user = (await getSessionUser()) as SessionUser | null;
+  const session = await getSession();
+const user = session?.user as SessionUser | null;
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
