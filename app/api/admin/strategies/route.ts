@@ -24,7 +24,7 @@ const supabase = createClient(
 
 export async function GET() {
   const session = await getSession();
-const user = session?.user as SessionUser | null;
+  const user = session?.user as SessionUser | null;
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -36,14 +36,18 @@ const user = session?.user as SessionUser | null;
     .order("key");
 
   if (error) {
-    return NextResponse.json({ error: "No se pudieron cargar las estrategias" }, { status: 500 });
+    return NextResponse.json(
+      { error: "No se pudieron cargar las estrategias" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data });
 }
 
 export async function PUT(req: NextRequest) {
-  const user = (await getSessionUser()) as SessionUser | null;
+  const session = await getSession();
+  const user = session?.user as SessionUser | null;
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -55,16 +59,17 @@ export async function PUT(req: NextRequest) {
 
   const body = (await req.json()) as Strategy;
 
-  const { error } = await supabase
-    .from("strategies")
-    .upsert({
-      key: body.key,
-      label: body.label,
-      index_multiplier: body.index_multiplier,
-    });
+  const { error } = await supabase.from("strategies").upsert({
+    key: body.key,
+    label: body.label,
+    index_multiplier: body.index_multiplier,
+  });
 
   if (error) {
-    return NextResponse.json({ error: "No se pudo guardar la estrategia" }, { status: 500 });
+    return NextResponse.json(
+      { error: "No se pudo guardar la estrategia" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true });
